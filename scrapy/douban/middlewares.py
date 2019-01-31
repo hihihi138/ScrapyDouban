@@ -6,6 +6,9 @@
 # https://doc.scrapy.org/en/latest/topics/spider-middleware.html
 
 from scrapy import signals
+from urllib import request
+import json
+import random
 
 
 class DoubanSpiderMiddleware(object):
@@ -106,5 +109,16 @@ class DoubanDownloaderMiddleware(object):
 class ProxyMiddleware(object):
     def process_request(self, request, spider):
         # curl https://m.douban.com/book/subject/26628811/ -x http://127.0.0.1:8081
-        request.meta['proxy'] = 'http://127.0.0.1:8081'
-        # request.meta['proxy'] = 'http://10.0.0.164:1080'
+        # request.meta['proxy'] = 'http://127.0.0.1:8081'
+        proxy = self.get_proxy()
+        request.meta['proxy'] = proxy
+        spider.logger.info('Using proxy: %s' % proxy)
+
+    def get_proxy(self):
+        scylla_url = 'http://localhost:8899/api/v1/proxies?https=true&limit=1000'
+        req = request.Request(url=scylla_url, method='GET')
+        response = request.urlopen(req)
+        data = response.read()
+        j = json.loads(data.decode('utf-8'))
+        proxy = random.choice(j['proxies'])
+        return '{}:{}'.format(proxy['ip'], proxy['port'])
